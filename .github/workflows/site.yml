@@ -6,7 +6,7 @@ name: Site
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
   # Daily rebuild, so events that have ended move from the home page to the past page.
   # 10:17 UTC is 3:17 AM in Portland during daylight saving time.
@@ -48,7 +48,7 @@ jobs:
       - run: just audit
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: check
     runs-on: ubuntu-24.04
     permissions:

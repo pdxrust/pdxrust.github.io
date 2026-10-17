@@ -53,7 +53,7 @@ links, and the address isn't stored in the repository.
 ## Deployment
 
 `.github/workflows/site.yml` runs `just check`, `lint`, `test` and `build` on
-every push and pull request, and `just audit` in a separate job. On `master` it
+every push and pull request, and `just audit` in a separate job. On `main` it
 builds with the address from the Pages settings and deploys to GitHub Pages. A
 daily scheduled run rebuilds the site so that ended events move from the home
 page to the past page.
