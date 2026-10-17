@@ -45,6 +45,7 @@ just serve   # serve dist/ at http://localhost:8000
 just test    # unit tests
 just lint    # rustfmt, clippy and typos
 just audit   # cargo deny: advisories, licenses, sources
+just due     # true if an event ended in the last 48 hours
 ```
 
 `just build URL` builds for a public address. Feeds and calendars need absolute
@@ -54,9 +55,13 @@ links, and the address isn't stored in the repository.
 
 `.github/workflows/site.yml` runs `just check`, `lint`, `test` and `build` on
 every push and pull request, and `just audit` in a separate job. On `main` it
-builds with the address from the Pages settings and deploys to GitHub Pages. A
-daily scheduled run rebuilds the site so that ended events move from the home
-page to the past page.
+builds with the address from the Pages settings and deploys to GitHub Pages.
+
+A daily scheduled run moves ended events from the home page to the past page.
+It builds and deploys only when `just due` prints `true`. Otherwise the site
+would come out the same: pages change only when an event ends, and feed and
+calendar dates come from git, not the clock. The audit job runs every day
+either way.
 
 GitHub disables scheduled workflows after 60 days without repository activity.
 If the home page stops updating, re-enable the workflow under Actions.

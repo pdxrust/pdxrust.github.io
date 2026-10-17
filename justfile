@@ -13,6 +13,10 @@ build base_url="http://localhost:8000":
 check:
   cargo run --release -- check
 
+# Print true if an event ended in the last 48 hours, so a scheduled rebuild has work to do
+due:
+  @cargo run --release --quiet -- due
+
 # Run the tests
 test:
   cargo test

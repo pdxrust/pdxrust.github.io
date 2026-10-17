@@ -6,6 +6,7 @@ use jiff::{Timestamp, tz::TimeZone};
 
 use crate::{
     event::{Event, Status},
+    history::{Dates, dates_of},
     render::{event_url, place},
 };
 
@@ -18,8 +19,17 @@ const UID_DOMAIN: &str = "pdxrust";
 /// Longest content line in octets, not counting the CRLF (RFC 5545 section 3.1).
 const LINE_LIMIT: usize = 75;
 
-/// A calendar of `events`. `now` is the `DTSTAMP` of every event.
-pub fn calendar(name: &str, base_url: &str, events: &[Event], now: Timestamp) -> String {
+/// A calendar of `events`.
+///
+/// Each event's `DTSTAMP` is the latest commit to its file, so rebuilding without new commits
+/// produces the same file. Files without git history use `now`.
+pub fn calendar(
+    name: &str,
+    base_url: &str,
+    events: &[Event],
+    dates: &Dates,
+    now: Timestamp,
+) -> String {
     let mut out = String::new();
     line(&mut out, "BEGIN:VCALENDAR");
     line(&mut out, "VERSION:2.0");
@@ -31,18 +41,21 @@ pub fn calendar(name: &str, base_url: &str, events: &[Event], now: Timestamp) ->
     line(&mut out, "REFRESH-INTERVAL;VALUE=DURATION:PT12H");
     line(&mut out, "X-PUBLISHED-TTL:PT12H");
     for event in events {
-        vevent(&mut out, base_url, event, now);
+        vevent(
+            &mut out,
+            base_url,
+            event,
+            dates_of(event, dates, now).changed,
+        );
     }
     line(&mut out, "END:VCALENDAR");
     out
 }
 
-/// Appends one `VEVENT`.
-fn vevent(out: &mut String, base_url: &str, event: &Event, now: Timestamp) {
+/// Appends one `VEVENT` with `changed` as its `DTSTAMP`.
+fn vevent(out: &mut String, base_url: &str, event: &Event, changed: Timestamp) {
     let url = event_url(base_url, &event.slug);
-    let end = event
-        .end
-        .unwrap_or(event.start + crate::event::DEFAULT_LENGTH);
+    let end = event.ends();
     let status = match event.status {
         Status::Scheduled => "CONFIRMED",
         Status::Cancelled => "CANCELLED",
@@ -55,7 +68,7 @@ fn vevent(out: &mut String, base_url: &str, event: &Event, now: Timestamp) {
 
     line(out, "BEGIN:VEVENT");
     line(out, &format!("UID:{}@{UID_DOMAIN}", event.slug));
-    line(out, &format!("DTSTAMP:{}", utc(now)));
+    line(out, &format!("DTSTAMP:{}", utc(changed)));
     line(out, &format!("DTSTART:{}", utc(event.start)));
     line(out, &format!("DTEND:{}", utc(end)));
     line(out, &format!("SUMMARY:{}", text(&event.title)));
@@ -139,14 +152,21 @@ mod tests {
     #[test]
     fn writes_a_complete_event() {
         let now: Timestamp = "2026-10-17T12:00:00Z".parse().unwrap();
+        let changed = "2026-09-01T00:00:00Z".parse().unwrap();
+        let file = crate::history::FileDates {
+            added: changed,
+            changed,
+        };
+        let dates = Dates::from([("events/2026/2026-11-12-x.md".to_owned(), file)]);
         let events = [event("status = \"scheduled\"\n", "Talk")];
-        let ics = calendar("PDX Rust", "https://example.test", &events, now);
+        let ics = calendar("PDX Rust", "https://example.test", &events, &dates, now);
         assert!(ics.starts_with("BEGIN:VCALENDAR\r\n") && ics.ends_with("END:VCALENDAR\r\n"));
         assert!(!ics.replace("\r\n", "").contains('\n'), "bare LF in output");
         let ics = unfold(&ics);
         for expected in [
             "UID:2026-11-12-x@pdxrust\r\n",
-            "DTSTAMP:20261017T120000Z\r\n",
+            // The file's last commit, not the build time.
+            "DTSTAMP:20260901T000000Z\r\n",
             "DTSTART:20261113T023000Z\r\n",
             // No `end`, so the default length applies.
             "DTEND:20261113T043000Z\r\n",
@@ -166,6 +186,7 @@ mod tests {
             "PDX Rust",
             "https://example.test",
             &events,
+            &Dates::new(),
             Timestamp::UNIX_EPOCH,
         );
         assert!(ics.contains("STATUS:CANCELLED\r\n"));

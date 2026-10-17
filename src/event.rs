@@ -38,12 +38,25 @@ pub struct Event {
 }
 
 impl Event {
-    /// Returns true until the event has ended at `now`.
-    ///
-    /// An event without an `end` counts as ending [`DEFAULT_LENGTH`] after it starts.
-    pub fn is_upcoming(&self, now: Timestamp) -> bool {
-        self.end.unwrap_or(self.start + DEFAULT_LENGTH) >= now
+    /// When the event ends. Without an `end`, that's [`DEFAULT_LENGTH`] after it starts.
+    pub fn ends(&self) -> Timestamp {
+        self.end.unwrap_or(self.start + DEFAULT_LENGTH)
     }
+
+    /// Returns true until the event has ended at `now`.
+    pub fn is_upcoming(&self, now: Timestamp) -> bool {
+        self.ends() >= now
+    }
+}
+
+/// Returns true if an event ended within `window` before `now`.
+///
+/// The home page only changes when an event ends, so a scheduled rebuild with nothing in the
+/// window would produce the same site.
+pub fn any_ended_within(events: &[Event], window: SignedDuration, now: Timestamp) -> bool {
+    events
+        .iter()
+        .any(|e| e.ends() <= now && e.ends() > now - window)
 }
 
 /// The front matter of an event file, before validation.
@@ -320,6 +333,33 @@ mod tests {
         ] {
             assert!(Slug::parse(stem).is_err(), "{stem} should be rejected");
         }
+    }
+
+    #[test]
+    fn rebuild_is_due_only_after_a_recent_end() {
+        let text = "+++\ntitle = \"x\"\nstart = 2026-11-12T18:00:00-08:00\nkind = \"talk\"\n\
+                    status = \"scheduled\"\nlocation = \"online\"\n+++\n";
+        let path = std::path::Path::new("events/2026/2026-11-12-x.md");
+        let events = [crate::load::parse(path, "2026", text).unwrap()];
+        // No `end`, so it ends at 20:00 PST, 04:00 UTC the next day.
+        let at = |t: &str| t.parse::<Timestamp>().unwrap();
+        let window = SignedDuration::from_hours(48);
+        assert!(
+            !any_ended_within(&events, window, at("2026-11-13T03:59:00Z")),
+            "not ended yet"
+        );
+        assert!(
+            any_ended_within(&events, window, at("2026-11-13T04:00:00Z")),
+            "just ended"
+        );
+        assert!(
+            any_ended_within(&events, window, at("2026-11-15T03:59:00Z")),
+            "inside window"
+        );
+        assert!(
+            !any_ended_within(&events, window, at("2026-11-15T04:00:00Z")),
+            "window passed"
+        );
     }
 
     #[test]

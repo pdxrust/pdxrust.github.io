@@ -2,15 +2,16 @@
 //!
 //! Both feeds list the newest [`FEED_LENGTH`] events by start time, upcoming ones included. An
 //! entry is dated by when its event file was committed: RSS `pubDate` and Atom `published` are
-//! the first commit, Atom `updated` the latest. Files without git history use the build time.
+//! the first commit, Atom `updated` the latest. The feed's own date is the latest entry change, so
+//! rebuilding without new commits produces the same file. Files without git history use `now`.
 
-use std::{collections::HashMap, fmt::Write as _};
+use std::fmt::Write as _;
 
 use jiff::{Timestamp, tz::TimeZone};
 
 use crate::{
     event::{Event, Status},
-    history::FileDates,
+    history::{Dates, dates_of},
     load::Site,
     render::{event_url, place, when},
 };
@@ -18,16 +19,12 @@ use crate::{
 /// How many events each feed lists.
 const FEED_LENGTH: usize = 25;
 
-/// Commit times of event files, keyed by path relative to the repository root.
-pub type Dates = HashMap<String, FileDates>;
-
-/// The commit times of `event`'s file, or `now` for a file git doesn't know.
-fn dates_of(event: &Event, dates: &Dates, now: Timestamp) -> FileDates {
-    let path = format!("events/{}/{}.md", event.slug.year(), event.slug);
-    dates.get(&path).copied().unwrap_or(FileDates {
-        added: now,
-        changed: now,
-    })
+/// The latest change to any listed event, or `now` when there are none.
+fn feed_updated(events: &[Event], dates: &Dates, now: Timestamp) -> Timestamp {
+    newest(events)
+        .map(|e| dates_of(e, dates, now).changed)
+        .max()
+        .unwrap_or(now)
 }
 
 /// The RSS 2.0 feed, served at `/feed.xml`.
@@ -42,12 +39,12 @@ pub fn rss(site: &Site, base_url: &str, events: &[Event], dates: &Dates, now: Ti
          <link>{base_url}/</link>\n\
          <description>{description}</description>\n\
          <language>en-us</language>\n\
-         <lastBuildDate>{now}</lastBuildDate>\n\
+         <lastBuildDate>{updated}</lastBuildDate>\n\
          <atom:link href=\"{base_url}/feed.xml\" rel=\"self\" type=\"application/rss+xml\"/>\n",
         title = escape(&site.title),
         description = escape(&site.description),
         base_url = escape(base_url),
-        now = rfc2822(now),
+        updated = rfc2822(feed_updated(events, dates, now)),
     );
     for event in newest(events) {
         let url = escape(&event_url(base_url, &event.slug));
@@ -85,14 +82,14 @@ pub fn atom(
          <id>{base_url}/</id>\n\
          <title>{title}</title>\n\
          <subtitle>{description}</subtitle>\n\
-         <updated>{now}</updated>\n\
+         <updated>{updated}</updated>\n\
          <author><name>{title}</name></author>\n\
          <link rel=\"alternate\" type=\"text/html\" href=\"{base_url}/\"/>\n\
          <link rel=\"self\" type=\"application/atom+xml\" href=\"{base_url}/atom.xml\"/>\n",
         title = escape(&site.title),
         description = escape(&site.description),
         base_url = escape(base_url),
-        now = now,
+        updated = feed_updated(events, dates, now),
     );
     for event in newest(events) {
         let url = escape(&event_url(base_url, &event.slug));
@@ -173,8 +170,10 @@ fn escape(value: &str) -> String {
 mod tests {
     use std::path::Path;
 
+    use std::collections::HashMap;
+
     use super::*;
-    use crate::load;
+    use crate::{history::FileDates, load};
 
     fn fixture() -> (Site, Vec<Event>) {
         let site: Site = toml::from_str(
@@ -227,6 +226,8 @@ mod tests {
         // Dated by first commit, or the build time without history.
         assert!(xml.contains("<pubDate>Mon, 1 Dec 2025 00:00:00 +0000</pubDate>"));
         assert!(xml.contains("<pubDate>Thu, 1 Jan 1970 00:00:00 +0000</pubDate>"));
+        // The channel's date is the latest entry change, not the build time.
+        assert!(xml.contains("<lastBuildDate>Mon, 15 Dec 2025 00:00:00 +0000</lastBuildDate>"));
         assert!(xml.contains("<title>Cancelled: Second</title>"));
         // Body HTML is escaped once more, as RSS description text.
         assert!(xml.contains("&amp;lt;b&amp;gt;body&amp;lt;/b&amp;gt;"));
@@ -246,7 +247,8 @@ mod tests {
             Timestamp::UNIX_EPOCH,
         );
         assert!(xml.contains("<id>https://example.test/</id>"));
-        assert!(xml.contains("<updated>1970-01-01T00:00:00Z</updated>"));
+        // The feed's date is the latest entry change, not the build time.
+        assert!(xml.contains("<updated>2025-12-15T00:00:00Z</updated>\n<author>"));
         assert!(xml.contains("<author><name>PDX Rust</name></author>"));
         assert!(xml.contains("<id>https://example.test/events/2026-01-01-first/</id>"));
         assert!(xml.contains("<published>2025-12-01T00:00:00Z</published>"));

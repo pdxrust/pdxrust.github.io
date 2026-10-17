@@ -3,7 +3,11 @@
 //! ```text
 //! build-site build --base-url URL [--out DIR] [--now RFC3339]   write the site (default: dist)
 //! build-site check                                              validate site.toml and events/
+//! build-site due [--now RFC3339]                                print whether a rebuild is due
 //! ```
+//!
+//! `due` prints `true` when an event ended in the last [`DUE_WINDOW`], otherwise `false`. The
+//! scheduled CI run uses it to skip rebuilds that would produce the same site.
 //!
 //! `--base-url` is the public address the site is served from, such as `https://example.org`.
 //! Feeds and calendars need absolute links, and the hosting address isn't part of the source.
@@ -24,13 +28,19 @@ use std::{
     process::ExitCode,
 };
 
-use jiff::Timestamp;
+use jiff::{SignedDuration, Timestamp};
 
 use crate::{event::HttpUrl, render::Output};
 
 /// Usage text printed on a bad command line.
 const USAGE: &str = "usage: build-site build --base-url URL [--out DIR] [--now RFC3339]\n       \
-                     build-site check";
+                     build-site check\n       \
+                     build-site due [--now RFC3339]";
+
+/// How far back `due` looks for an ended event.
+///
+/// The scheduled rebuild runs daily. Two days covers one failed or skipped run.
+const DUE_WINDOW: SignedDuration = SignedDuration::from_hours(48);
 
 /// What the command line asked for.
 enum Command {
@@ -45,6 +55,11 @@ enum Command {
     },
     /// Validate the inputs and write nothing.
     Check,
+    /// Print whether an event ended within [`DUE_WINDOW`] before `now`.
+    Due {
+        /// The current time.
+        now: Timestamp,
+    },
 }
 
 fn main() -> ExitCode {
@@ -80,7 +95,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Command, String>
         let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
         match (command.as_str(), flag.as_str()) {
             ("build", "--out") => out = value()?.into(),
-            ("build", "--now") => {
+            ("build" | "due", "--now") => {
                 now = value()?.parse().map_err(|e| format!("--now: {e}"))?;
             }
             ("build", "--base-url") => {
@@ -96,6 +111,7 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Command, String>
             Ok(Command::Build { out, now, base_url })
         }
         "check" => Ok(Command::Check),
+        "due" => Ok(Command::Due { now }),
         other => Err(format!("unknown command `{other}`")),
     }
 }
@@ -122,6 +138,10 @@ fn run(command: Command) -> Result<(), Vec<String>> {
             println!("ok: site.toml and {} event(s)", events.len());
             Ok(())
         }
+        Command::Due { now } => {
+            println!("{}", event::any_ended_within(&events, DUE_WINDOW, now));
+            Ok(())
+        }
         Command::Build { out, now, base_url } => {
             let dates = history::file_dates(Path::new("events")).map_err(|e| vec![e])?;
             let mut files = render::site(&site, &events, now);
@@ -135,7 +155,7 @@ fn run(command: Command) -> Result<(), Vec<String>> {
             });
             files.push(Output {
                 path: "events.ics".into(),
-                contents: ical::calendar(&site.title, &base_url, &events, now),
+                contents: ical::calendar(&site.title, &base_url, &events, &dates, now),
             });
             for event in &events {
                 files.push(Output {
@@ -144,6 +164,7 @@ fn run(command: Command) -> Result<(), Vec<String>> {
                         &site.title,
                         &base_url,
                         std::slice::from_ref(event),
+                        &dates,
                         now,
                     ),
                 });

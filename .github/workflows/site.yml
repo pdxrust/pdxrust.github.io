@@ -8,8 +8,9 @@ on:
   push:
     branches: [main]
   pull_request:
-  # Daily rebuild, so events that have ended move from the home page to the past page.
-  # 10:17 UTC is 3:17 AM in Portland during daylight saving time.
+  # Daily rebuild, so events that have ended move from the home page to the past page. It only
+  # builds and deploys when `just due` says an event ended in the last 48 hours, and the audit job
+  # runs every day. 10:17 UTC is 3:17 AM in Portland during daylight saving time.
   schedule:
     - cron: "17 10 * * *"
   workflow_dispatch:
@@ -20,6 +21,8 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    outputs:
+      run: ${{ steps.due.outputs.run }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -30,10 +33,23 @@ jobs:
         with:
           tool: just@1.41.0,typos@1.49.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
-      - run: just check
-      - run: just lint
-      - run: just test
-      - run: just build
+      - id: due
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = schedule ]; then
+            echo "run=$(just due)" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.due.outputs.run == 'true'
+        run: just check
+      - if: steps.due.outputs.run == 'true'
+        run: just lint
+      - if: steps.due.outputs.run == 'true'
+        run: just test
+      - if: steps.due.outputs.run == 'true'
+        run: just build
 
   # Separate from `check` so a newly published advisory doesn't block the daily rebuild.
   audit:
@@ -48,7 +64,9 @@ jobs:
       - run: just audit
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      needs.check.outputs.run == 'true'
     needs: check
     runs-on: ubuntu-24.04
     permissions:

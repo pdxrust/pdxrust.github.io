@@ -7,6 +7,8 @@ use std::{collections::HashMap, path::Path, process::Command};
 
 use jiff::Timestamp;
 
+use crate::event::Event;
+
 /// Commit times of one file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FileDates {
@@ -16,12 +18,24 @@ pub struct FileDates {
     pub changed: Timestamp,
 }
 
+/// Commit times of event files, keyed by path relative to the repository root.
+pub type Dates = HashMap<String, FileDates>;
+
+/// The commit times of `event`'s file, or `fallback` for a file git doesn't know.
+pub fn dates_of(event: &Event, dates: &Dates, fallback: Timestamp) -> FileDates {
+    let path = format!("events/{}/{}.md", event.slug.year(), event.slug);
+    dates.get(&path).copied().unwrap_or(FileDates {
+        added: fallback,
+        changed: fallback,
+    })
+}
+
 /// Commit times of every file under `dir`, keyed by its path relative to the repository root.
 ///
 /// Returns an empty map with a warning on stderr when `git` or the repository is missing, so a
 /// source tarball still builds. A shallow clone is an error, because every file would appear to
 /// have been added by the newest commit.
-pub fn file_dates(dir: &Path) -> Result<HashMap<String, FileDates>, String> {
+pub fn file_dates(dir: &Path) -> Result<Dates, String> {
     let shallow = Command::new("git")
         .args(["rev-parse", "--is-shallow-repository"])
         .output();
@@ -55,8 +69,8 @@ pub fn file_dates(dir: &Path) -> Result<HashMap<String, FileDates>, String> {
 }
 
 /// Parses `git log --format=@%cI --name-only` output, which lists the newest commit first.
-fn parse_log(log: &str) -> Result<HashMap<String, FileDates>, String> {
-    let mut dates: HashMap<String, FileDates> = HashMap::new();
+fn parse_log(log: &str) -> Result<Dates, String> {
+    let mut dates = Dates::new();
     let mut commit = None;
     for line in log.lines().filter(|l| !l.is_empty()) {
         if let Some(date) = line.strip_prefix('@') {
