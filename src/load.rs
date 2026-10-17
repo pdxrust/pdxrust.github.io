@@ -182,6 +182,7 @@ pub fn parse(path: &Path, year: &str, text: &str) -> Result<Event, String> {
         links: front.links,
         body_html: markdown::to_html(body),
         summary_html: markdown::first_paragraph_html(body),
+        summary_text: markdown::first_paragraph_text(body),
     })
 }
 
@@ -308,7 +309,7 @@ Hello *world*.
                 "`end` must be after",
             ),
             (
-                VALID.replace("title =", "titel = \"x\"\ntitle ="),
+                VALID.replace("title =", "venue = \"x\"\ntitle ="),
                 "unknown field",
             ),
             (

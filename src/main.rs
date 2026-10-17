@@ -1,13 +1,18 @@
 //! Builds the PDX Rust website from `site.toml`, `events/` and `static/`.
 //!
 //! ```text
-//! build-site build [--out DIR] [--now RFC3339]   write the site (default: dist)
-//! build-site check                               validate site.toml and events/ only
+//! build-site build --base-url URL [--out DIR] [--now RFC3339]   write the site (default: dist)
+//! build-site check                                              validate site.toml and events/
 //! ```
+//!
+//! `--base-url` is the public address the site is served from, such as `https://example.org`.
+//! Feeds and calendars need absolute links, and the hosting address isn't part of the source.
 //!
 //! Run from the repository root.
 
 mod event;
+mod feeds;
+mod ical;
 mod load;
 mod markdown;
 mod render;
@@ -20,8 +25,11 @@ use std::{
 
 use jiff::Timestamp;
 
+use crate::{event::HttpUrl, render::Output};
+
 /// Usage text printed on a bad command line.
-const USAGE: &str = "usage: build-site build [--out DIR] [--now RFC3339]\n       build-site check";
+const USAGE: &str = "usage: build-site build --base-url URL [--out DIR] [--now RFC3339]\n       \
+                     build-site check";
 
 /// What the command line asked for.
 enum Command {
@@ -31,6 +39,8 @@ enum Command {
         out: PathBuf,
         /// The build time.
         now: Timestamp,
+        /// Public address of the site, without a trailing slash.
+        base_url: String,
     },
     /// Validate the inputs and write nothing.
     Check,
@@ -58,9 +68,10 @@ fn main() -> ExitCode {
 
 /// Parses the arguments after the program name.
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Command, String> {
-    let command = args.next().unwrap_or_else(|| "build".into());
+    let command = args.next().ok_or("missing command")?;
     let mut out = PathBuf::from("dist");
     let mut now = Timestamp::now();
+    let mut base_url = None;
     while let Some(flag) = args.next() {
         let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
         match (command.as_str(), flag.as_str()) {
@@ -68,11 +79,18 @@ fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Command, String>
             ("build", "--now") => {
                 now = value()?.parse().map_err(|e| format!("--now: {e}"))?;
             }
+            ("build", "--base-url") => {
+                let url = HttpUrl::try_from(value()?).map_err(|e| format!("--base-url: {e}"))?;
+                base_url = Some(url.as_str().trim_end_matches('/').to_owned());
+            }
             _ => return Err(format!("unexpected argument `{flag}`")),
         }
     }
     match command.as_str() {
-        "build" => Ok(Command::Build { out, now }),
+        "build" => {
+            let base_url = base_url.ok_or("build needs --base-url")?;
+            Ok(Command::Build { out, now, base_url })
+        }
         "check" => Ok(Command::Check),
         other => Err(format!("unknown command `{other}`")),
     }
@@ -100,25 +118,48 @@ fn run(command: Command) -> Result<(), Vec<String>> {
             println!("ok: site.toml and {} event(s)", events.len());
             Ok(())
         }
-        Command::Build { out, now } => {
-            let pages = render::site(&site, &events, now);
-            write(&out, &pages).map_err(|e| vec![e])?;
-            println!("wrote {} page(s) to {}", pages.len(), out.display());
+        Command::Build { out, now, base_url } => {
+            let mut files = render::site(&site, &events, now);
+            files.push(Output {
+                path: "feed.xml".into(),
+                contents: feeds::rss(&site, &base_url, &events, now),
+            });
+            files.push(Output {
+                path: "atom.xml".into(),
+                contents: feeds::atom(&site, &base_url, &events, now),
+            });
+            files.push(Output {
+                path: "events.ics".into(),
+                contents: ical::calendar(&site.title, &base_url, &events, now),
+            });
+            for event in &events {
+                files.push(Output {
+                    path: format!("events/{}/event.ics", event.slug).into(),
+                    contents: ical::calendar(
+                        &site.title,
+                        &base_url,
+                        std::slice::from_ref(event),
+                        now,
+                    ),
+                });
+            }
+            write(&out, &files).map_err(|e| vec![e])?;
+            println!("wrote {} file(s) to {}", files.len(), out.display());
             Ok(())
         }
     }
 }
 
-/// Writes `pages` and copies `static/` into `out`. Existing files are overwritten.
-fn write(out: &Path, pages: &[render::Page]) -> Result<(), String> {
+/// Writes `files` and copies `static/` into `out`. Existing files are overwritten.
+fn write(out: &Path, files: &[Output]) -> Result<(), String> {
     let write_file = |path: &Path, contents: &[u8]| -> Result<(), String> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
         }
         fs::write(path, contents).map_err(|e| format!("{}: {e}", path.display()))
     };
-    for page in pages {
-        write_file(&out.join(&page.path), page.html.as_bytes())?;
+    for file in files {
+        write_file(&out.join(&file.path), file.contents.as_bytes())?;
     }
     let static_dir = Path::new("static");
     let entries = fs::read_dir(static_dir).map_err(|e| format!("{}: {e}", static_dir.display()))?;

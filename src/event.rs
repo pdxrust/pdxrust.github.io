@@ -6,7 +6,7 @@ use jiff::{SignedDuration, Timestamp};
 use serde::{Deserialize, Deserializer, de};
 
 /// How long an event without an `end` is assumed to run, for the upcoming/past split.
-const DEFAULT_LENGTH: SignedDuration = SignedDuration::from_hours(2);
+pub const DEFAULT_LENGTH: SignedDuration = SignedDuration::from_hours(2);
 
 /// A published event.
 #[derive(Debug, Clone)]
@@ -33,6 +33,8 @@ pub struct Event {
     pub body_html: String,
     /// Sanitized HTML of the body's first paragraph, empty when it has none.
     pub summary_html: String,
+    /// Plain text of the body's first paragraph, empty when it has none.
+    pub summary_text: String,
 }
 
 impl Event {

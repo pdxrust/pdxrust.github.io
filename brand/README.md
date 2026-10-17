@@ -15,7 +15,7 @@ The lettering is drawn as paths, so the files don't depend on installed fonts.
 The 32 px avatar is too detailed to read well, so a favicon needs a simpler
 mark.
 
-Regenerate the PNGs after changing an SVG:
+Regenerate the PNG files after changing an SVG:
 
 ```sh
 for s in 32 64 128 256 512 1024; do

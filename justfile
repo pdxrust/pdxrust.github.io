@@ -4,10 +4,10 @@ set positional-arguments
 default:
   @just --list
 
-# Build the site into dist/
-build:
+# Build the site into dist/. CI passes the public address as base_url.
+build base_url="http://localhost:8000":
   rm -rf dist
-  cargo run --release -- build --out dist
+  cargo run --release -- build --out dist --base-url {{base_url}}
 
 # Validate site.toml and events/ without writing anything
 check:
@@ -17,10 +17,11 @@ check:
 test:
   cargo test
 
-# Format check and clippy
+# Format check, clippy and spelling
 lint:
   cargo fmt --check
   cargo clippy --all-targets -- -D warnings
+  typos
 
 # Dependency advisories, licenses and sources
 audit:

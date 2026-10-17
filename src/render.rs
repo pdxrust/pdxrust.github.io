@@ -8,7 +8,7 @@ use jiff::{Timestamp, Zoned, tz::TimeZone};
 use leptos::prelude::*;
 
 use crate::{
-    event::{Event, Kind, Location, Status},
+    event::{Event, Kind, Location, Slug, Status},
     load::Site,
 };
 
@@ -28,16 +28,16 @@ const RECENT_TALKS: usize = 5;
 /// License of the Rust logo artwork the site's logo is adapted from.
 const CC_BY: &str = "https://creativecommons.org/licenses/by/4.0/";
 
-/// A rendered page and where it goes in the output directory.
-pub struct Page {
+/// A generated file and where it goes in the output directory.
+pub struct Output {
     /// Path relative to the output directory.
     pub path: PathBuf,
-    /// Complete HTML document.
-    pub html: String,
+    /// Complete file contents.
+    pub contents: String,
 }
 
 /// Renders every page of the site. Events ending before `now` go to the past page.
-pub fn site(site: &Site, events: &[Event], now: Timestamp) -> Vec<Page> {
+pub fn site(site: &Site, events: &[Event], now: Timestamp) -> Vec<Output> {
     let (upcoming, mut past): (Vec<_>, Vec<_>) =
         events.iter().cloned().partition(|e| e.is_upcoming(now));
     past.reverse();
@@ -106,7 +106,7 @@ fn page<V: IntoView + 'static>(
     title: Option<String>,
     nav: Nav,
     body: impl FnOnce() -> V + 'static,
-) -> Page {
+) -> Output {
     let site = site.clone();
     let html = Owner::new().with(move || {
         let title = match title {
@@ -123,6 +123,18 @@ fn page<V: IntoView + 'static>(
                     <title>{title}</title>
                     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
                     <link rel="stylesheet" href="/style.css" />
+                    <link
+                        rel="alternate"
+                        type="application/rss+xml"
+                        title="PDX Rust events (RSS)"
+                        href="/feed.xml"
+                    />
+                    <link
+                        rel="alternate"
+                        type="application/atom+xml"
+                        title="PDX Rust events (Atom)"
+                        href="/atom.xml"
+                    />
                 </head>
                 <body>
                     <a class="skip" href="#main">
@@ -153,9 +165,9 @@ fn page<V: IntoView + 'static>(
         }
         .to_html()
     });
-    Page {
+    Output {
         path: path.into(),
-        html: format!("<!doctype html>{html}"),
+        contents: format!("<!doctype html>{html}"),
     }
 }
 
@@ -183,6 +195,14 @@ fn Footer(site: Site) -> impl IntoView {
                     <a href=site.discord_url.as_str().to_owned()>
                         <img src="/icon-discord.svg" alt="" width="22" height="22" />
                         "Discord"
+                    </a>
+                    <a href="/events.ics">
+                        <img src="/icon-calendar.svg" alt="" width="22" height="22" />
+                        "Calendar"
+                    </a>
+                    <a href="/feed.xml">
+                        <img src="/icon-rss.svg" alt="" width="22" height="22" />
+                        "RSS"
                     </a>
                     <a href=site.repo_url.as_str().to_owned()>
                         <img src="/icon-github.svg" alt="" width="22" height="22" />
@@ -303,7 +323,8 @@ fn NextEvent(upcoming: Vec<Event>) -> impl IntoView {
                     </p>
                     <div class="summary" inner_html=summary></div>
                     <p class="actions">
-                        <a href=href>"Details"</a>
+                        <a href=href.clone()>"Details"</a>
+                        <a href=format!("{href}event.ics")>"Add to calendar"</a>
                     </p>
                 </div>
             </article>
@@ -422,6 +443,9 @@ fn EventPage(event: Event) -> impl IntoView {
                 <p class="meta">
                     <time datetime=machine_time(event.start)>{meta}</time>
                 </p>
+                <p class="actions">
+                    <a href=format!("/events/{}/event.ics", event.slug)>"Add to calendar"</a>
+                </p>
                 {speakers}
                 <div class="body" inner_html=body></div>
                 {links}
@@ -454,8 +478,13 @@ fn speaker_names(event: &Event) -> String {
         .join(", ")
 }
 
+/// Absolute URL of an event's page. `base_url` has no trailing slash.
+pub fn event_url(base_url: &str, slug: &Slug) -> String {
+    format!("{base_url}/events/{slug}/")
+}
+
 /// The location as one line of text.
-fn place(location: &Location) -> String {
+pub fn place(location: &Location) -> String {
     match location {
         Location::Online => "Online".to_owned(),
         Location::Venue {
@@ -484,7 +513,7 @@ fn machine_time(t: Timestamp) -> String {
 
 /// Human-readable date and time range, such as
 /// `Thursday, November 12, 2026, 6:30 PM – 8:30 PM PST`.
-fn when(event: &Event) -> String {
+pub fn when(event: &Event) -> String {
     const DATE_TIME: &str = "%A, %B %-d, %Y, %-I:%M %p";
     let start = local(event.start);
     let Some(end) = event.end.map(local) else {
@@ -577,12 +606,12 @@ mod tests {
         (site, events)
     }
 
-    fn find<'a>(pages: &'a [Page], path: &str) -> &'a str {
+    fn find<'a>(pages: &'a [Output], path: &str) -> &'a str {
         &pages
             .iter()
             .find(|p| p.path == Path::new(path))
             .expect(path)
-            .html
+            .contents
     }
 
     #[test]
@@ -625,8 +654,15 @@ mod tests {
         let (site, events) = fixture();
         let pages = super::site(&site, &events, Timestamp::UNIX_EPOCH);
         for page in &pages {
-            assert!(page.html.starts_with("<!doctype html><html lang=\"en\">"));
-            assert!(!page.html.contains("<script"), "{}", page.path.display());
+            assert!(
+                page.contents
+                    .starts_with("<!doctype html><html lang=\"en\">")
+            );
+            assert!(
+                !page.contents.contains("<script"),
+                "{}",
+                page.path.display()
+            );
         }
         assert!(find(&pages, "index.html").contains("&lt;script&gt;x&lt;/script&gt;"));
         assert!(find(&pages, "events/2026-12-01-off/index.html").contains(">Cancelled<"));

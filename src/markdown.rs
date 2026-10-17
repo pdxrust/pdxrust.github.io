@@ -14,7 +14,27 @@ pub fn to_html(markdown: &str) -> String {
 ///
 /// Returns an empty string when there is no paragraph.
 pub fn first_paragraph_html(markdown: &str) -> String {
-    let paragraph = events(markdown)
+    render(markdown.len(), first_paragraph(markdown))
+}
+
+/// The text of the first paragraph of `markdown`, with formatting and link targets dropped.
+///
+/// Returns an empty string when there is no paragraph.
+pub fn first_paragraph_text(markdown: &str) -> String {
+    let mut text = String::new();
+    for event in first_paragraph(markdown) {
+        match event {
+            Event::Text(t) | Event::Code(t) => text.push_str(&t),
+            Event::SoftBreak | Event::HardBreak => text.push(' '),
+            _ => {}
+        }
+    }
+    text
+}
+
+/// The events of the first paragraph of `markdown`, including its start and end tags.
+fn first_paragraph(markdown: &str) -> impl Iterator<Item = Event<'_>> {
+    events(markdown)
         .skip_while(|event| !matches!(event, Event::Start(Tag::Paragraph)))
         .scan(false, |done, event| {
             if *done {
@@ -22,8 +42,7 @@ pub fn first_paragraph_html(markdown: &str) -> String {
             }
             *done = matches!(event, Event::End(TagEnd::Paragraph));
             Some(event)
-        });
-    render(markdown.len(), paragraph)
+        })
 }
 
 /// Parses `markdown`, turning raw HTML into text.
@@ -68,6 +87,8 @@ mod tests {
         let html = first_paragraph_html("# Heading\n\nOne <b>x</b>.\n\nTwo.\n");
         assert_eq!(html.trim(), "<p>One &lt;b&gt;x&lt;/b&gt;.</p>");
         assert_eq!(first_paragraph_html("# Only a heading\n"), "");
+        let text = first_paragraph_text("Use *`cargo`*\nand [links](https://x.test).\n\nTwo.\n");
+        assert_eq!(text, "Use cargo and links.");
     }
 
     #[test]
