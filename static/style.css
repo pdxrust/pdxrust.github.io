@@ -1,0 +1,462 @@
+/* Oxidized theme. Dark only. Contrast against --bg: --fg 15:1, --muted 9:1, --accent 6.6:1. */
+:root {
+  color-scheme: dark;
+  --bg: #171311;
+  --bg-raised: #1f1916;
+  --fg: #f3ece6;
+  --muted: #c9bdb4;
+  --faint: #a99c92;
+  --accent: #f07a3a;
+  --accent-hover: #ff9a5c;
+  --border: #3a2e28;
+  --badge-bg: #4a1d1d;
+  --badge-fg: #fecaca;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "DejaVu Sans Mono", monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+a:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+img {
+  max-width: 100%;
+}
+
+.wrap {
+  max-width: 70rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.skip {
+  position: absolute;
+  left: -100vw;
+}
+
+.skip:focus {
+  left: 1rem;
+  top: 1rem;
+  z-index: 1;
+  padding: 0.5rem 1rem;
+  background: var(--bg);
+}
+
+/* Header */
+
+header.site .row {
+  padding-block: 1.25rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.wordmark {
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.accent {
+  color: var(--accent);
+}
+
+header.site nav {
+  display: flex;
+  gap: 1.5rem;
+  font-weight: 600;
+}
+
+header.site nav a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+header.site nav a[aria-current="page"] {
+  color: var(--fg);
+  border-bottom: 2px solid var(--accent);
+}
+
+/* Home banner: the skyline sits at the bottom of the grid cell and the text overlays its sky. */
+
+.hero {
+  display: grid;
+  background: var(--bg-raised);
+}
+
+.hero > * {
+  grid-area: 1 / 1;
+}
+
+/* The height follows the artwork's 1280:380 ratio between 24rem and the 100rem max width, so the
+   whole scene shows on desktops and phones crop to the bridge end. */
+.skyline {
+  align-self: end;
+  justify-self: center;
+  display: block;
+  width: 100%;
+  max-width: 100rem;
+  height: clamp(24rem, 29.7vw, 29.7rem);
+  object-fit: cover;
+  object-position: 75% bottom;
+}
+
+/* Past the max width, fade the sides into the banner background. */
+@media (min-width: 100rem) {
+  .skyline {
+    mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+  }
+}
+
+.hero-text {
+  /* Positioned so it paints above the skyline, which the mask turns into a stacking context. */
+  position: relative;
+  width: 100%;
+  padding-top: 3rem;
+  padding-bottom: 9rem;
+}
+
+.hero h1 {
+  margin: 0;
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.lede {
+  max-width: 30rem;
+  margin: 1rem 0 1.5rem;
+  color: #d8ccc3;
+  font-size: 1.15rem;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  padding: 0 1.25rem;
+  border: 2px solid var(--accent);
+  border-radius: 0.4rem;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.button:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg);
+}
+
+.button.secondary {
+  background: transparent;
+  color: var(--fg);
+}
+
+.button.secondary:hover {
+  color: var(--accent-hover);
+}
+
+/* Sections */
+
+.wrap > section {
+  margin-block: 3rem;
+}
+
+.label {
+  margin: 0 0 1rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.section-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.section-head .label {
+  margin: 0;
+}
+
+.empty {
+  color: var(--muted);
+}
+
+/* Next event */
+
+.featured {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2rem;
+  padding-block: 2rem;
+  border-top: 2px solid var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+
+.date-block {
+  display: flex;
+  flex-direction: column;
+  width: 7.5rem;
+  line-height: 1;
+}
+
+.date-block .dow,
+.date-block .month {
+  color: var(--muted);
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.date-block .day {
+  margin: 0.4rem 0;
+  font-size: 4.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.featured-body {
+  display: flex;
+  flex: 1 1 26rem;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.featured-body h3 {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.featured-body h3 a {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.featured-body h3 a:hover {
+  text-decoration: underline;
+}
+
+.featured-body p,
+.summary p {
+  margin: 0;
+}
+
+.speakers {
+  font-size: 1.15rem;
+}
+
+.summary {
+  max-width: 40rem;
+  color: #d8ccc3;
+}
+
+.actions {
+  font-weight: 700;
+}
+
+.also {
+  margin: 1rem 0 0;
+  color: var(--muted);
+}
+
+.kind {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.badge {
+  padding: 0 0.6rem;
+  border-radius: 0.25rem;
+  background: var(--badge-bg);
+  color: var(--badge-fg);
+}
+
+.meta {
+  color: var(--muted);
+}
+
+/* Event rows: recent talks and the past events page */
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.rows time {
+  flex: 0 0 7rem;
+  color: var(--faint);
+}
+
+.rows .title {
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+.rows .title a {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.rows .who {
+  color: var(--muted);
+}
+
+/* Inner pages */
+
+.page {
+  padding-block: 2.5rem 3rem;
+}
+
+.page h1 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.event h2 {
+  margin: 2rem 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.plain {
+  padding-left: 1.25rem;
+}
+
+.body {
+  max-width: 42rem;
+}
+
+.body pre {
+  overflow-x: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.body code {
+  font-family: var(--mono);
+}
+
+.body table {
+  border-collapse: collapse;
+}
+
+.body th,
+.body td {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+}
+
+/* Footer */
+
+footer.site {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+}
+
+footer.site .row {
+  padding-block: 1.75rem;
+}
+
+.elsewhere {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  /* Lines the first icon up with the page edge. The links keep their padding as touch area. */
+  margin-left: -0.75rem;
+}
+
+.elsewhere a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+.elsewhere a:hover {
+  color: var(--accent-hover);
+}
+
+.legal {
+  max-width: 30rem;
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.875rem;
+}
+
+.legal a {
+  color: var(--muted);
+}

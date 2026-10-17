@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 380" preserveAspectRatio="xMidYMax slice">
+  <!-- Portland at night: Mt. Hood, the downtown skyline and the Fremont Bridge arch. -->
+  <rect width="1280" height="380" fill="#1f1916"/>
+  <circle cx="1130" cy="70" r="26" fill="#3a2c24"/>
+  <circle cx="1140" cy="64" r="24" fill="#1f1916"/>
+  <g fill="#8a7a70">
+    <circle cx="700" cy="40" r="1.5"/><circle cx="820" cy="90" r="1.2"/><circle cx="980" cy="30" r="1.4"/>
+    <circle cx="1220" cy="140" r="1.2"/><circle cx="620" cy="110" r="1"/><circle cx="1050" cy="120" r="1.1"/>
+  </g>
+  <polygon points="700,380 905,110 935,100 965,115 1170,380" fill="#2b221e"/>
+  <polygon points="878,146 905,110 935,100 965,115 992,150 968,140 948,154 925,138 902,155" fill="#5b4d45"/>
+  <path d="M0 270 Q 200 225 420 258 T 820 250 T 1280 256 V380 H0Z" fill="#241c18"/>
+  <g fill="#2e2420">
+    <polygon points="20,268 34,228 48,268"/><polygon points="52,264 64,232 76,264"/><polygon points="150,250 166,208 182,250"/>
+    <polygon points="186,248 198,218 210,248"/><polygon points="1180,258 1194,222 1208,258"/><polygon points="1210,260 1224,226 1238,260"/>
+  </g>
+  <g fill="#352a24">
+    <rect x="300" y="226" width="40" height="84"/><rect x="345" y="186" width="36" height="124"/>
+    <polygon points="388,310 392,128 424,128 428,310"/><rect x="434" y="206" width="44" height="104"/>
+    <rect x="484" y="160" width="40" height="150"/><rect x="530" y="214" width="50" height="96"/>
+    <rect x="586" y="238" width="40" height="72"/><rect x="632" y="194" width="30" height="116"/>
+  </g>
+  <g fill="#f07a3a" opacity="0.55">
+    <rect x="396" y="150" width="4" height="4"/><rect x="412" y="190" width="4" height="4"/><rect x="494" y="180" width="4" height="4"/>
+    <rect x="510" y="230" width="4" height="4"/><rect x="356" y="210" width="4" height="4"/><rect x="545" y="240" width="4" height="4"/>
+  </g>
+  <rect x="0" y="306" width="1280" height="74" fill="#120e0c"/>
+  <rect x="760" y="292" width="520" height="7" fill="#3a2c24"/>
+  <path d="M850 296 Q 1030 80 1210 296" fill="none" stroke="#f07a3a" stroke-width="7"/>
+  <g stroke="#f07a3a" stroke-width="2" opacity="0.8">
+    <line x1="922" y1="229" x2="922" y2="292"/><line x1="976" y1="200" x2="976" y2="292"/><line x1="1030" y1="191" x2="1030" y2="292"/>
+    <line x1="1084" y1="200" x2="1084" y2="292"/><line x1="1138" y1="229" x2="1138" y2="292"/>
+  </g>
+  <path d="M850 330 Q 1030 380 1210 330" fill="none" stroke="#f07a3a" stroke-width="2" opacity="0.25"/>
+</svg>

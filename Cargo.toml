@@ -1,0 +1,28 @@
+[package]
+name = "build-site"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.98.1"
+description = "Static site generator for the PDX Rust meetup"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[dependencies]
+ammonia = "4.2.4"
+jiff = { version = "0.2.38", default-features = false, features = [
+  "std",
+  "tzdb-bundle-always",
+] }
+# `ssr` renders views to strings. No hydration, wasm or server is built.
+leptos = { version = "0.8.22", features = ["ssr"] }
+pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
+
+[lints.rust]
+unsafe_code = "forbid"
+rust_2018_idioms = { level = "warn", priority = -1 }
+unused = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
