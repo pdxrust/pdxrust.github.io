@@ -1,14 +1,16 @@
 //! RSS 2.0 and Atom feeds of events.
 //!
 //! Both feeds list the newest [`FEED_LENGTH`] events by start time, upcoming ones included. An
-//! entry's date is the event's start, so rescheduling an event updates its entry.
+//! entry is dated by when its event file was committed: RSS `pubDate` and Atom `published` are
+//! the first commit, Atom `updated` the latest. Files without git history use the build time.
 
-use std::fmt::Write as _;
+use std::{collections::HashMap, fmt::Write as _};
 
 use jiff::{Timestamp, tz::TimeZone};
 
 use crate::{
     event::{Event, Status},
+    history::FileDates,
     load::Site,
     render::{event_url, place, when},
 };
@@ -16,8 +18,20 @@ use crate::{
 /// How many events each feed lists.
 const FEED_LENGTH: usize = 25;
 
+/// Commit times of event files, keyed by path relative to the repository root.
+pub type Dates = HashMap<String, FileDates>;
+
+/// The commit times of `event`'s file, or `now` for a file git doesn't know.
+fn dates_of(event: &Event, dates: &Dates, now: Timestamp) -> FileDates {
+    let path = format!("events/{}/{}.md", event.slug.year(), event.slug);
+    dates.get(&path).copied().unwrap_or(FileDates {
+        added: now,
+        changed: now,
+    })
+}
+
 /// The RSS 2.0 feed, served at `/feed.xml`.
-pub fn rss(site: &Site, base_url: &str, events: &[Event], now: Timestamp) -> String {
+pub fn rss(site: &Site, base_url: &str, events: &[Event], dates: &Dates, now: Timestamp) -> String {
     let mut out = String::new();
     let _ = write!(
         out,
@@ -47,7 +61,7 @@ pub fn rss(site: &Site, base_url: &str, events: &[Event], now: Timestamp) -> Str
              <description>{content}</description>\n\
              </item>\n",
             title = escape(&entry_title(event)),
-            date = rfc2822(event.start),
+            date = rfc2822(dates_of(event, dates, now).added),
             content = escape(&content_html(event)),
         );
     }
@@ -56,7 +70,13 @@ pub fn rss(site: &Site, base_url: &str, events: &[Event], now: Timestamp) -> Str
 }
 
 /// The Atom feed, served at `/atom.xml`.
-pub fn atom(site: &Site, base_url: &str, events: &[Event], now: Timestamp) -> String {
+pub fn atom(
+    site: &Site,
+    base_url: &str,
+    events: &[Event],
+    dates: &Dates,
+    now: Timestamp,
+) -> String {
     let mut out = String::new();
     let _ = write!(
         out,
@@ -76,17 +96,20 @@ pub fn atom(site: &Site, base_url: &str, events: &[Event], now: Timestamp) -> St
     );
     for event in newest(events) {
         let url = escape(&event_url(base_url, &event.slug));
+        let file = dates_of(event, dates, now);
         let _ = write!(
             out,
             "<entry>\n\
              <id>{url}</id>\n\
              <title>{title}</title>\n\
-             <updated>{date}</updated>\n\
+             <published>{published}</published>\n\
+             <updated>{updated}</updated>\n\
              <link rel=\"alternate\" type=\"text/html\" href=\"{url}\"/>\n\
              <content type=\"html\">{content}</content>\n\
              </entry>\n",
             title = escape(&entry_title(event)),
-            date = event.start,
+            published = file.added,
+            updated = file.changed,
             content = escape(&content_html(event)),
         );
     }
@@ -179,6 +202,15 @@ mod tests {
         (site, events)
     }
 
+    /// Commit dates for the first fixture event only. The second has no history.
+    fn dates() -> Dates {
+        let first = FileDates {
+            added: "2025-12-01T00:00:00Z".parse().unwrap(),
+            changed: "2025-12-15T00:00:00Z".parse().unwrap(),
+        };
+        HashMap::from([("events/2026/2026-01-01-first.md".to_owned(), first)])
+    }
+
     #[test]
     fn rss_escapes_and_links_absolutely() {
         let (site, events) = fixture();
@@ -186,12 +218,15 @@ mod tests {
             &site,
             "https://example.test",
             &events,
+            &dates(),
             Timestamp::UNIX_EPOCH,
         );
         assert!(xml.contains("<description>Rust &amp; friends</description>"));
         assert!(xml.contains("<title>&lt;script&gt;x&lt;/script&gt; &amp; co</title>"));
         assert!(xml.contains("<link>https://example.test/events/2026-01-01-first/</link>"));
-        assert!(xml.contains("<pubDate>Fri, 13 Nov 2026 02:30:00 +0000</pubDate>"));
+        // Dated by first commit, or the build time without history.
+        assert!(xml.contains("<pubDate>Mon, 1 Dec 2025 00:00:00 +0000</pubDate>"));
+        assert!(xml.contains("<pubDate>Thu, 1 Jan 1970 00:00:00 +0000</pubDate>"));
         assert!(xml.contains("<title>Cancelled: Second</title>"));
         // Body HTML is escaped once more, as RSS description text.
         assert!(xml.contains("&amp;lt;b&amp;gt;body&amp;lt;/b&amp;gt;"));
@@ -207,13 +242,15 @@ mod tests {
             &site,
             "https://example.test",
             &events,
+            &dates(),
             Timestamp::UNIX_EPOCH,
         );
         assert!(xml.contains("<id>https://example.test/</id>"));
         assert!(xml.contains("<updated>1970-01-01T00:00:00Z</updated>"));
         assert!(xml.contains("<author><name>PDX Rust</name></author>"));
         assert!(xml.contains("<id>https://example.test/events/2026-01-01-first/</id>"));
-        assert!(xml.contains("<updated>2026-11-13T02:30:00Z</updated>"));
+        assert!(xml.contains("<published>2025-12-01T00:00:00Z</published>"));
+        assert!(xml.contains("<updated>2025-12-15T00:00:00Z</updated>"));
         assert_eq!(xml.matches("<entry>").count(), 2);
     }
 }

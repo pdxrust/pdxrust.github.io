@@ -12,6 +12,7 @@
 
 mod event;
 mod feeds;
+mod history;
 mod ical;
 mod load;
 mod markdown;
@@ -70,7 +71,10 @@ fn main() -> ExitCode {
 fn parse_args(mut args: impl Iterator<Item = String>) -> Result<Command, String> {
     let command = args.next().ok_or("missing command")?;
     let mut out = PathBuf::from("dist");
-    let mut now = Timestamp::now();
+    // Whole seconds, so feed and calendar timestamps don't carry nanoseconds.
+    let mut now = Timestamp::now()
+        .round(jiff::Unit::Second)
+        .map_err(|e| format!("current time: {e}"))?;
     let mut base_url = None;
     while let Some(flag) = args.next() {
         let mut value = || args.next().ok_or_else(|| format!("{flag} needs a value"));
@@ -119,14 +123,15 @@ fn run(command: Command) -> Result<(), Vec<String>> {
             Ok(())
         }
         Command::Build { out, now, base_url } => {
+            let dates = history::file_dates(Path::new("events")).map_err(|e| vec![e])?;
             let mut files = render::site(&site, &events, now);
             files.push(Output {
                 path: "feed.xml".into(),
-                contents: feeds::rss(&site, &base_url, &events, now),
+                contents: feeds::rss(&site, &base_url, &events, &dates, now),
             });
             files.push(Output {
                 path: "atom.xml".into(),
-                contents: feeds::atom(&site, &base_url, &events, now),
+                contents: feeds::atom(&site, &base_url, &events, &dates, now),
             });
             files.push(Output {
                 path: "events.ics".into(),
