@@ -31,21 +31,18 @@ site must make an email signup link prominent (external form, see Email below).
 - **Out of scope:** comments, photo/video hosting, member database, accounts,
   email storage. The signup form is external.
 
-## Open question 1: build approach (decide with the maintainer, do not pick silently)
+## Build approach (decided 2026-10-17)
 
-Evaluate and report tradeoffs before writing any code. Verify current state
-first; do not rely on memory.
-- **A. Plain build binary (xtask-style)** that reads event files, renders HTML
-  (Leptos `view!` rendered to a string, or another templating crate), and writes
-  all outputs. Likely least complexity and easiest handoff.
-- **B. Leptos static routes** (`leptos_router` `StaticRoute` plus
-  cargo-leptos). Note: an older cargo-leptos issue called static support "very
-  experimental". Check whether that is still true for the current Leptos
-  release.
-- **C. `cinnog`** (community Leptos SSG crate). Check maintenance status and
-  compatibility with the current Leptos version.
+A plain build binary (`src/main.rs`) renders pages with Leptos 0.8 `view!` and
+`RenderHtml::to_html()`. No server, wasm or cargo-leptos. Rejected:
+- Leptos `StaticRoute` needs cargo-leptos and an axum server, and the Leptos
+  book doesn't document it.
+- `cinnog` has one maintainer, is built on Bevy, and doesn't support Leptos 0.9.
 
-Recommend one with evidence. The maintainer decides.
+Leptos adds about 128 crates that a string-only renderer doesn't use. The
+maintainer accepted that over a lighter templating crate, because they know
+Leptos and the site should show current Rust UI practice. Don't re-propose the
+swap on dependency count alone.
 
 ## Event data model
 
@@ -78,23 +75,20 @@ after the maintainer reviews it.
   link (permalink: <https://discord.gg/ZpvYBCP6xc>)
 - `/past/` event history
 - `/events/<slug>/` per-event page
-- `/feed.xml` RSS 2.0 (confirm RSS vs Atom with the maintainer; default RSS 2.0,
-  matching the stated goal. Might be worth supporting both).
+- `/feed.xml` RSS 2.0 and `/atom.xml` Atom, dated by each event file's git
+  commits
 - `/events.ics` iCalendar feed (stable UIDs, correct time zone handling,
   `STATUS:CANCELLED` for cancelled events)
 - `/404.html`, `robots.txt`; a sitemap is optional
 
-"Upcoming" vs "past" is computed at build time. A page can go stale after an
-event passes, so CI must also rebuild on a daily schedule, not only on
-push. Alternatively, some client-side JS is likely better than updating the code
-daily.
+"Upcoming" vs "past" is computed at build time, and CI rebuilds daily so ended
+events move to the past page. The site has no JavaScript.
 
 ## CI and contribution flow
 
 - Build and validate on PRs and on pushes to the default branch; deploy only
   from the default branch.
-- Scheduled daily rebuild (cron) to refresh upcoming/past. (pending the
-  client-side JS decision)
+- Scheduled daily rebuild (cron) to refresh upcoming/past.
 - PR validation checks event files only: schema, dates, unique
   slugs. Contributors propose events by adding one file. Write a short
   `CONTRIBUTING.md` and an event template.
@@ -115,8 +109,9 @@ Link is https://buttondown.com/pdxrust
 
 ## Security and quality (maintainer is a defense contractor engineer; correctness and security come first)
 
-- `#![forbid(unsafe_code)]` in all crates; minimal dependencies; `cargo deny`
-  and `cargo audit` in CI.
+- `#![forbid(unsafe_code)]` in all crates, minimal dependencies, and
+  `cargo deny` in CI. `cargo deny check advisories` reads the same RustSec database as
+  `cargo audit`, so CI doesn't run both.
 - Validate and escape all rendered content. Markdown from PRs is untrusted
   input: sanitize or disallow raw HTML.
 - GitHub Pages cannot set response headers. If a CSP is wanted, use a `<meta>`
@@ -149,7 +144,6 @@ backfill.
 
 ## Not verified (check before relying on them)
 
-- Current Leptos static-routing and cargo-leptos behavior; `cinnog` maintenance
-  status.
 - Codeberg Pages and Woodpecker CI specifics (for the later migration path).
-- Buttondown RSS-to-email details and current pricing tiers.
+- Whether Buttondown's RSS-to-email sends items already in the feed when it's
+  first connected. RSS-to-email is a $9/month add-on (checked 2026-10-17).

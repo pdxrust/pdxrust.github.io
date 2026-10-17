@@ -345,6 +345,18 @@ Hello *world*.
     }
 
     #[test]
+    fn event_template_is_valid() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("templates/event.md");
+        let text = fs::read_to_string(path).unwrap();
+        parse(
+            Path::new("events/2026/2026-12-10-template.md"),
+            "2026",
+            &text,
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn loads_the_repository_events() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("events");
         let events = events(&dir).unwrap_or_else(|errors| {
