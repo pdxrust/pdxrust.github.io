@@ -15,7 +15,7 @@ jiff = { version = "0.2.38", default-features = false, features = [
 ] }
 # `ssr` renders views to strings. No hydration, wasm or server is built.
 leptos = { version = "0.8.22", features = ["ssr"] }
-pulldown-cmark = { version = "0.13.4", default-features = false, features = ["html"] }
+pulldown-cmark = { version = "0.13.6", default-features = false, features = ["html"] }
 serde = { version = "1.0.229", features = ["derive"] }
 toml = "1.1.8"
 
