@@ -19,6 +19,6 @@ url = "https://phonegentic.ai"
 Phonegentic is an iOS/MacOS application with a backend that runs in Rust and C++
 
 The project began when I wanted to experiment with putting an AI voice agent into a phone call,
-and Rust was my goto for the backend, and the interop with C++. What's unsual (or not) is this is my
+and Rust was my go-to for the backend, and the interop with C++. What's unusual (or not) is this is my
 first Rust app 100% vibe coded, so I'd love to get criticism on why / why not? I'll be going over the source (some of it, I'll be looking at for the first time). The app is available at the app store and
 has a few novel features.
