@@ -1,6 +1,6 @@
 +++
 title = "One Pixel at a Time: Seven Years of Graphics in Rust"
-start = 2027-01-14T19:00:00-08:00
+start = 2027-02-11T19:00:00-08:00
 kind = "talk"
 status = "scheduled"
 
