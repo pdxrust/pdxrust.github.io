@@ -1,5 +1,5 @@
 +++
-title = "Why I vibe coded my app in Rust and how it went?"
+title = "Why I vibe coded my app in Rust and how it went"
 start = 2027-01-14T19:00:00-08:00
 kind = "talk"
 status = "scheduled"
