@@ -12,8 +12,8 @@ address = "1900 SW 4th Ave, Portland, OR"
 name = "Patrick Lemiuex"
 
 [[links]]
-kind = "url"
-url = "https://phonentic.ai"
+kind = "other"
+url = "https://phonegentic.ai"
 +++
 
 Phonegentic is an iOS/MacOS application with a backend that runs in Rust and C++
