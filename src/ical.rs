@@ -83,7 +83,7 @@ fn vevent(out: &mut String, base_url: &str, event: &Event, changed: Timestamp) {
 ///
 /// UTC times need no `VTIMEZONE` block, and every client converts them to its own zone.
 fn utc(t: Timestamp) -> String {
-    t.to_zoned(TimeZone::UTC)
+    t.to_zoned_datetime(TimeZone::UTC)
         .strftime("%Y%m%dT%H%M%SZ")
         .to_string()
 }
