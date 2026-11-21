@@ -144,7 +144,7 @@ fn content_html(event: &Event) -> String {
 
 /// `t` in RFC 2822 form with a `+0000` offset, as RSS requires.
 fn rfc2822(t: Timestamp) -> String {
-    jiff::fmt::rfc2822::to_string(&t.to_zoned(TimeZone::UTC))
+    jiff::fmt::rfc2822::to_string(&t.to_zoned_datetime(TimeZone::UTC))
         .expect("every Timestamp in UTC is representable in RFC 2822")
 }
 

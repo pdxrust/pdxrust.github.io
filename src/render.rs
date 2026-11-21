@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use jiff::{Timestamp, Zoned, tz::TimeZone};
+use jiff::{Timestamp, ZonedDateTime, tz::TimeZone};
 use leptos::prelude::*;
 
 use crate::{
@@ -499,11 +499,11 @@ pub fn place(location: &Location) -> String {
 }
 
 /// `t` in the display time zone.
-fn local(t: Timestamp) -> Zoned {
+fn local(t: Timestamp) -> ZonedDateTime {
     // The tzdb is bundled into the binary (jiff `tzdb-bundle-always`), so this can't fail at
     // runtime on any host.
     let zone = TimeZone::get(ZONE).expect("bundled tzdb includes America/Los_Angeles");
-    t.to_zoned(zone)
+    t.to_zoned_datetime(zone)
 }
 
 /// `t` as an RFC 3339 string with the local offset, for `<time datetime>`.
