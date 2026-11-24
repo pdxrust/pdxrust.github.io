@@ -4,9 +4,7 @@ all-features = true
 [advisories]
 version = 2
 yanked = "warn"
-ignore = [
-  { id = "RUSTSEC-2024-0436", reason = "paste is unmaintained, dependency of leptos: https://github.com/leptos-rs/leptos/issues/3685" },
-]
+ignore = []
 
 [licenses]
 version = 2
